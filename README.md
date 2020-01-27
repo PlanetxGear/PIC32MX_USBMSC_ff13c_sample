@@ -1,8 +1,8 @@
-﻿# PIC32MX250F128B USB MSC Class Driver Project.
+﻿# PIC32MX250F128B USB MSC Class Driver with FatFs[8] sample project.
 ---
 ## Description
 
-This is a simple USB MSC Class Driver Project with [PIC32MX250F128B micro controller][5] & [MPLAB.X][1] & [MCC][2].
+This is a simple USB MSC Class Driver with FatFs Project with [PIC32MX250F128B micro controller][5] & [MPLAB.X][1] & [MCC][2].
 I don't use [MLA][6](Microchip Livraries for Applications). I directly manipulate the USB registers.
 You can operat it by terminal with serial communication speed of 115,200 bps.
 
@@ -11,6 +11,7 @@ You can operat it by terminal with serial communication speed of 115,200 bps.
 
 
 ## References.
+ * <http://elm-chan.org/fsw/ff/00index_e.html>
  * <http://ww1.microchip.com/downloads/en/DeviceDoc/61126F.pdf>
  * <http://ww1.microchip.com/downloads/jp/DeviceDoc/61126F_JP.pdf>
  * <http://www.picfun.com/usb03.html>
@@ -18,6 +19,7 @@ You can operat it by terminal with serial communication speed of 115,200 bps.
 
 ## Prerequisites
 I created this project using the free versions of the following tools:
+ * [FatFs - Generic FAT Filesystem Module][8](R0.13)
  * [Microchip MPLAB X][1] (v5.30)
  * [Microchip MPLAB X Code Configurator][2] (v3.85.1)
  * [Microchip XC32 Compiler][4] (v2.30)
@@ -44,4 +46,4 @@ Hiroshi Murakami
 [5]: https://www.microchip.com/wwwproducts/en/PIC32MX250F128B
 [6]: https://www.microchip.com/mplab/microchip-libraries-for-applications
 [7]: https://kicad-pcb.org/ 
-
+[8]: http://elm-chan.org/fsw/ff/00index_e.html "FatFs(by ChaN)"
