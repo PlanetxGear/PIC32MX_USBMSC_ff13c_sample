@@ -11,9 +11,9 @@ You can operat it by terminal with serial communication speed of 115,200 bps.
 
 
 ## References.
-http://ww1.microchip.com/downloads/en/DeviceDoc/61126F.pdf
-http://ww1.microchip.com/downloads/jp/DeviceDoc/61126F_JP.pdf
-http://www.picfun.com/usb03.html
+ * <http://ww1.microchip.com/downloads/en/DeviceDoc/61126F.pdf>
+ * <http://ww1.microchip.com/downloads/jp/DeviceDoc/61126F_JP.pdf>
+ * <http://www.picfun.com/usb03.html>
 
 
 ## Prerequisites
