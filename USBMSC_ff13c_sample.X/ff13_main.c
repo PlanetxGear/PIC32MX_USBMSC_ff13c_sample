@@ -36,6 +36,7 @@ FILINFO Finfo;
 FATFS FatFs;			/* File system object */
 FIL File[2];			/* File objects */
 BYTE Buff[4096];		/* Working buffer */
+BYTE TempBuff[1024];		/* Working buffer */
 
 
 
@@ -103,9 +104,9 @@ FRESULT scan_files (
 
 /*-----------------------------------------------------------------------*/
 /* FatFs 13 Main                                                         */
-void ff13_main (char *ptr)
+void ff13_main (char *ptr0)
 {
-//	char *ptr, *ptr2;
+	char *ptr;
 	char *ptr2;
 	long p1, p2, p3;
 	BYTE b, drv = 0;
@@ -116,7 +117,8 @@ void ff13_main (char *ptr)
 	FATFS *fs;				/* Pointer to file system object */
 	DIR dir;				/* Directory object */
 
-
+    memcpy(TempBuff, ptr0, CMND_BUFFER_SIZE);    // Copy command
+    ptr = TempBuff;
 
 //	for (;;) {
 //		xputc('>');
@@ -228,7 +230,7 @@ void ff13_main (char *ptr)
 				if (res) { put_rc(res); break; }
 				xprintf("FAT type = FAT%u\nBytes/Cluster = %lu\nNumber of FATs = %u\n"
 						"Root DIR entries = %u\nSectors/FAT = %lu\nNumber of clusters = %lu\n"
-						"Volume start (lba) = %lu\nFAT start (lba) = %lu\nDIR start (lba,clustor) = %lu\nData start (lba) = %lu\n\n...",
+						"Volume start (lba) = %lu\nFAT start (lba) = %lu\nDIR start (lba,clustor) = %lu\nData start (lba) = %lu\n...\n",
 						ft[fs->fs_type & 3], fs->csize * 512UL, fs->n_fats,
 						fs->n_rootdir, fs->fsize, fs->n_fatent - 2,
 						fs->volbase, fs->fatbase, fs->dirbase, fs->database
@@ -435,11 +437,11 @@ void ff13_main (char *ptr)
 				break;
 #if FF_FS_RPATH >= 2
 			case 'q' :	/* fq - Show current dir path */
-				res = f_getcwd(cCmdBuf, CMND_BUFFER_SIZE);
+				res = f_getcwd(TempBuff, 1024);
 				if (res)
 					put_rc(res);
 				else
-					xprintf("%s\n", cCmdBuf);
+					xprintf("%s\n", TempBuff);
 				break;
 #endif
 #endif
@@ -468,57 +470,7 @@ void ff13_main (char *ptr)
 			xprintf("%u/%u/%u %02u:%02u:%02u\n", rtcYear, rtcMon, rtcMday, rtcHour, rtcMin, rtcSec);
 			break;
 
-//		case 'u' :		/* usb command */
-//			switch (*ptr++) {
-//            case 'a':
-//                SCSI_init();
-//                break;
-//            case 'b':
-//                SCSI_requestSense(Buff);
-//                break;
-//            case 'c':
-//                SCSI_readCapacity(Buff);
-//                break;
-//            case 'd' :	/* bd <ofs> - Dump R/W buffer */
-//				if (!xatoi(&ptr, &p1))   //Get a offset
-//                {
-//                    p1 = 0;
-//                }
-//                for (ptr=(char*)&Buff[p1], ofs = p1, cnt = 32; cnt; cnt--, ptr += 16, ofs += 16)
-//                    put_dump((BYTE*)ptr, ofs, 16, DW_CHAR);
-//                break;
-//            case 's':
-//                xprintf("SCSIstatus:%d USBstatus:%d \n",SCSIobj.Status, USBobj.Status);
-//                break;
-//            case 'r':
-//                SCSI_read(Buff, SCSIobj.MscTotal);
-//                for (ptr=(char*)Buff, ofs = 0; ofs < 512; ptr += 16, ofs += 16)
-//                {
-//                    put_dump((BYTE*)ptr, ofs, 16, DW_CHAR);
-//                }
-//                break;
-//            case 'w':	/* uw <No.> - Fill the last sector with a No. */
-//                pCmdbuf = (char*)&cCmdBuf[3];   //Get a No.
-//                if (!xatoi(&pCmdbuf, &num1))
-//                {
-//                    vXputs_FormatError();
-//                } else if (SCSIobj.MscTotal == 0)
-//                {
-//                        xputs("You should get Max sector No. by 'UC' command.\n");
-//                } else
-//                {
-//                    // set data buffer by input Number
-//                    for (ptr=Buff, i = 0; i < 512; ptr += 1, i += 1)
-//                    {
-//                        *ptr = num1;
-//                    }
-//                    SCSI_write(Buff, SCSIobj.MscTotal);
-//                }
-//                break;
-//    		}
-//			break;
 		}
-//	}
 
 }
 

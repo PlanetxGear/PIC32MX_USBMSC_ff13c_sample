@@ -3,7 +3,7 @@
  * @brief	serial COMMAND input low level driver.
  *			use UART2.
  * @author hiroshi murakami
- * @date	20161225
+ * @date	20200204
  *
  * This software is released under the MIT License, see LICENSE.md
  ******************************************************************************/
@@ -19,6 +19,14 @@
 unsigned char cCmdBuf[CMND_BUFFER_SIZE + 1];	//command buffer, last 1 byte is for stored NULL
 int iCIdx;		//command buffer insert position.
 
+enum _eEOL {
+	eCR = 0,
+	eLF,
+	eCRLF
+};
+
+enum _eEOL eEOL;
+
 
 //******************************************************************************
 /**	
@@ -32,36 +40,25 @@ void vPutc_to_TxFifo(unsigned char d)
 {
 	while (UART2_TransmitBufferIsFull() && (UART2_TransferStatusGet() & UART2_TRANSFER_STATUS_TX_FULL) )
 	{
-//        if(uart2_obj.txHead == uart2_obj.txTail)
-//        {
-//            uart2_obj.txStatus.s.empty = true;
-//            uart2_obj.
-//            break;
-//        }
-
 	}	// Wait while Tx FIFO is full
+
+    if (d == '\n')
+    {
+        if (eEOL == eCRLF)
+        {
+        	UART2_Write('\r');
+        	while (UART2_TransmitBufferIsFull())
+            {
+            }
+        }
+        else if (eEOL == eCR)
+        {
+            d = '\r';
+        }
+    }
 
 	UART2_Write(d);
 }
-
-
-//******************************************************************************
-/**	
- * @brief	Output one byte from TxFifo to UART module.
- * @param[in,out]	TxFifo	
- * @details	
- * when UART module Txbuffer has space and TxFifo has any data,
- * output data to UART module.
- * 
- */
-//void vUART_TxPutc(void)
-//{
-//	//while(!(UART1_StatusGet() & UART1_TX_FULL) && iFIFO_remains(&TxFifo)) 
-//	while(!(U1STAbits.UTXBF) && iFIFO_remains(&TxFifo)) 
-//	{
-//		UART2_Write(bFIFO_getc(&TxFifo));
-//	}
-//}
 
 
 //******************************************************************************
@@ -75,9 +72,7 @@ void vPutc_to_TxFifo(unsigned char d)
 void vUART_CMND_init(void)
 {
 	iCIdx = 0;							// command buffer clear 
-//	vFIFO_init (&TxFifo, sizeof(TxBuff), &TxBuff[0]);
 	xdev_out(vPutc_to_TxFifo);			// join xPutc to xPutc_to_TxFifo
-//    xdev_out(UART2_Write);			// join xPutc to xPutc_to_TxFifo
     
 }
 
@@ -87,14 +82,29 @@ void vUART_CMND_init(void)
 //* 1byte get from RX and insert command buffer
 //* echo back to UART
 //******************************************************************************
+unsigned char ucExData;
+unsigned char ucRxData;
 enum eUART_CMND eUART_CMND_Getc(void)
 {
-	unsigned char ucRxData;
-
-//	if(UART2_IsRxReady()) 
 	if(!UART2_ReceiveBufferIsEmpty()) 
 	{
+
+        ucExData = ucRxData;
 		ucRxData = UART2_Read();
+	    
+	    if(ucExData == '\r' && ucRxData == '\r' )
+	    {
+	        eEOL = eCR;
+	    }
+	    else if (ucExData == '\n' && ucRxData == '\n' )
+	    {
+	        eEOL = eLF;
+	    }
+	    else if (ucExData == '\r' && ucRxData == '\n' )
+	    {
+	        eEOL = eCRLF;
+	    }
+
 
 		switch(ucRxData)	//check the data.
 		{
@@ -111,7 +121,10 @@ enum eUART_CMND eUART_CMND_Getc(void)
 			break;
 
 		case '\r':  // CR (unused)
-			break;
+			if (eEOL != eCR)
+		    {
+    			break;
+		    }
 
 		case '\n':  // LF (= 'Enter' mean finish command input)
 			if(iCIdx < CMND_BUFFER_SIZE) 

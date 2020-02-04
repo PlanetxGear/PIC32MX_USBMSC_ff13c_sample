@@ -33,25 +33,67 @@ UINT8 UsbBufDAT512[512];	// Usb buffer for DATA
 
 const BYTE bMsg01[] = {
 //	"+Input your command!\n"		
-	"+(DEL)->Command clear\n"		
-	"+(ESC)->exit or clear\n"
+	"(DEL)->Command clear\n"		
+	"(ESC)->exit or clear\n"
 //	"+Thhmmss->Time setting\n"
-	"+ua->initializ USB & set USB Address as 1, Config as 1\n"				
-	"+ub->SCSI inquiry\n"
-	"+uc->SCSI readCapacity & get LastSecter No.\n"
-	"+uk->SCSI readFormatCapacity & get LastSecter No.\n"
-	"+ud->USB Dump Device Discriptor\n"
-	"+uf->USB Dump Config Discriptor\n"
-//    "+ui <wait_msec>->insert wait msec to SCSI\n"
-	"+ur <sector>->SCSI read & get data in the last Secter or assigned Sector\n"				
-	"+us->SCSI requestSense\n"
-	"+ut->SCSI testUnitReady\n"
-	"+ut->SCSI & USB status\n"
-	"+uw <No.>->command SCSI write & write a No. into the LastSecter\n"		
-    "+ux <ofs>->Dump R/W data buffer\n"
-    "+uy <ofs>->Dump UsbBufCMD64\n"
-	"+uz->SCSI & USB status\n"
-	"?a ALL help.\n"
+	"?u->USB command.\n"
+	"?f->FatFs command.\n"
+	"?d->Disc command.\n"
+	"?b->Buffer command.\n"
+	"?a->All command.\n"
+	"\0"
+};
+const BYTE bMsg_u[] = {
+	"ua->initializ USB & set USB Address as 1, Config as 1\n"				
+	"ub->SCSI inquiry\n"
+	"uc->SCSI readCapacity & get LastSecter No.\n"
+	"uk->SCSI readFormatCapacity & get LastSecter No.\n"
+	"ud->USB Dump Device Discriptor\n"
+	"uf->USB Dump Config Discriptor\n"
+    "ui->Bulk-Only Mass Storage Reset\n"
+	"ur <sector>->SCSI read & get data in the last Secter or assigned Sector\n"				
+	"us->SCSI requestSense\n"
+	"ut->SCSI testUnitReady\n"
+	"uw <No.>->command SCSI write & write a No. into the LastSecter\n"		
+    "ux <ofs>->Dump R/W data buffer\n"
+    "uy <ofs>->Dump UsbBufCMD64\n"
+	"uz->SCSI & USB status\n"
+	"\0"
+};
+const BYTE bMsg_d[] = {
+    "dd [<pd#> <sector>] - Dump secrtor \n"
+    "di <pd#> - Initialize physical drive \n"
+    "ds <pd#> - Show disk status \n"
+	"\0"
+};
+const BYTE bMsg_b[] = {
+    "bd <ofs> - Dump R/W buffer \n"
+    "be <ofs> [<data>] ... - Edit R/W buffer \n"
+    "br <pd#> <sector> <count> - Read disk into R/W buffer \n"
+    "bw <pd#> <sector> <count> - Write R/W buffer into disk \n"
+    "bf <n> - Fill working buffer \n"
+	"\0"
+};
+const BYTE bMsg_f[] = {
+    "fi [<mount>] - Force initialized the logical drive \n"
+    "fs [<path>] - Show logical drive status \n"
+    "fl [<path>] - Directory listing \n"
+    "fo <mode> <file> - Open a file / mode 1:read, 2:write\n"
+    "fc - Close a file \n"
+    "fe <ofs> - Seek file pointer \n"
+    "fr <len> - read file \n"
+    "fd <len> - read and dump file from current fp \n"
+    "fw <len> <val> - write file \n"
+    "fn <old_name> <new_name> - Change file/dir name \n"
+//    "fu <path> - Unlink a file or dir \n"
+//    "fv - Truncate file \n"
+    "fk <path> - Create a directory \n"
+    "fa <atrr> <mask> <name> - Change file/dir attribute \n"
+    "ft <year> <month> <day> <hour> <min> <sec> <name> - Change timestamp \n"
+    "fx <src_name> <dst_name> - Copy file \n"
+    "fg <path> - Change current directory \n"
+    "fq - Show current dir path \n"
+//    "fm <partition rule> <sect/clust> - Create file system \n"
 	"\0"
 };
 
@@ -223,6 +265,17 @@ UINT    cnt;
             put_dump((BYTE*)ptr, ofs, 16, DW_CHAR);
         break;
         
+    case 'I':
+    case 'i':   // Bulk-Only Mass Storage Reset
+        xputs("Bulk-Only Mass Storage Reset\n");
+        USBobj.Status = eUSB_BulkOnly_MassStorageReset_start;
+        while(USBobj.Status < eUSB_Busy )
+        {
+            USBMSC_statusControl();
+        }
+        break;
+        
+        
         
     case 'R':
     case 'r':
@@ -343,6 +396,22 @@ void vCommand_Help(void)
         switch (cCmdBuf[1]) {
         case 'a' :    // ALL help.
             xputs((char *)bMsg01);
+            xputs((char *)bMsg_u);
+            xputs((char *)bMsg_f);
+            xputs((char *)bMsg_d);
+            xputs((char *)bMsg_b);
+            break;
+        case 'u' :    // USB command.
+            xputs((char *)bMsg_u);
+            break;
+        case 'f' :    // FatFs file command.
+            xputs((char *)bMsg_f);
+            break;
+        case 'd' :    // FatFs disc command.
+            xputs((char *)bMsg_d);
+            break;
+        case 'b' :    // FatFs buffer command.
+            xputs((char *)bMsg_b);
             break;
 
         default:    // general message

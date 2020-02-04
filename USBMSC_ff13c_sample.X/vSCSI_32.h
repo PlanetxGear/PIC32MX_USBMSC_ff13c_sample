@@ -70,19 +70,22 @@ enum eSCSI_STATE {
 #define isSCSI_ERROR()              (SCSIobj.Status >= eSCSI_ERRORS)
 
 
-typedef struct __SCSI_CONDITION
+typedef struct __SCSI_OBJECT
 {
 	enum eSCSI_STATE        Status;
 	enum eSCSI_COMMAND		Command;
     INT16					DataLength;		// transmission data length
     UINT32					MscTotal;		// SCSI final sector number
     UINT8*					UsbBuffAddr;	// transmission data buffer address
-} SCSI_CONDITION;
+#ifdef _V_DEBUG_SCSI2
+	UINT16	SOFCountSt;     // SOF freame counter save for SCSI DEBUG
+#endif
+} SCSI_OBJECT;
 
 /*****************************
  * VARIABLES
  *****************************/
-extern SCSI_CONDITION SCSIobj;
+extern SCSI_OBJECT SCSIobj;
 //extern UINT8 UsbBufDAT512[512];	// Usb buffer for DATA
 
 /*****************************

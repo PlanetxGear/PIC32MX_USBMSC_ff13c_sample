@@ -9,6 +9,25 @@
  ******************************************************************************/
 #define _vSCSI_C
 
+//#define _V_DEBUG_SCSI1		// when Lv1 debugging, define _V_DEBUG_SCSI1. 
+#define _V_DEBUG_SCSI2		// when Lv2 debugging, define _V_DEBUG_SCSI2. 
+
+#ifdef _V_DEBUG_SCSI1
+	#define	DEBUG_SCSI1PUTS(str1)	xputs(str1)
+	#define	DEBUG_SCSI1PRINTF(fmt1, ...)	xprintf(fmt1, __VA_ARGS__)
+#else
+	#define	DEBUG_SCSI1PUTS(str1)
+	#define	DEBUG_SCSI1PRINTF(fmt1, ...)
+#endif
+
+#ifdef _V_DEBUG_SCSI2
+	#define	DEBUG_SCSI2PUTS(str1)	xputs(str1)
+	#define	DEBUG_SCSI2PRINTF(fmt1, ...)	xprintf(fmt1, __VA_ARGS__)
+#else
+	#define	DEBUG_SCSI2PUTS(str1)
+	#define	DEBUG_SCSI2PRINTF(fmt1, ...)
+#endif
+
 #include <string.h>		// for memset
 
 #include "mcc_generated_files/mcc.h"
@@ -21,7 +40,7 @@
 
 
 // SCSI condition
-SCSI_CONDITION SCSIobj;
+SCSI_OBJECT SCSIobj;
 
 
 // SCSI command
@@ -516,7 +535,7 @@ UINT32	sectorNo		// Sector address
 	DEBUG_SCSI1PUTS("SCSI Read command\n");
 	DEBUG_SCSI1PRINTF("SOF START:%u\n", USBobj.SOFCount);
 	#ifdef _V_DEBUG_SCSI2
-		USBobj.SOFCountSt = USBobj.SOFCount;
+		SCSIobj.SOFCountSt = USBobj.SOFCount;
 	#endif
 	memcpy(UsbBufCMD64, SCSIreadCmd, 31);	//SCSI read command.
 	SetSector(sectorNo, UsbBufCMD64);		//set final sector number to command.
@@ -527,7 +546,7 @@ UINT32	sectorNo		// Sector address
 
     SCSI_command_go();
 	
-    DEBUG_SCSI1PRINTF("SOF END:%u=>%d \n", USBobj.SOFCount,(USBobj.SOFCount - USBobj.SOFCountSt));
+    DEBUG_SCSI1PRINTF("SOF END:%u=>%d \n", USBobj.SOFCount,(USBobj.SOFCount - SCSIobj.SOFCountSt));
     DEBUG_SCSI1PUTS("SCSI Read END\n");
 }
 
@@ -548,7 +567,7 @@ UINT32	sectorNo		// Sector address
     DEBUG_SCSI1PUTS("SCSI Write command\n");
     DEBUG_SCSI1PRINTF("SOF START:%u\n", USBobj.SOFCount);
     #ifdef _V_DEBUG_SCSI2
-        USBobj.SOFCountSt = USBobj.SOFCount;
+        SCSIobj.SOFCountSt = USBobj.SOFCount;
     #endif
     memcpy(UsbBufCMD64, SCSIwriteCmd, 31);	//SCSI write command.
 	SetSector(sectorNo, UsbBufCMD64);		//set final sector number to command.
@@ -560,7 +579,7 @@ UINT32	sectorNo		// Sector address
 
     SCSI_command_go();
 	
-    DEBUG_SCSI1PRINTF("SOF END:%u=>%d \n", USBobj.SOFCount,(USBobj.SOFCount - USBobj.SOFCountSt));
+    DEBUG_SCSI1PRINTF("SOF END:%u=>%d \n", USBobj.SOFCount,(USBobj.SOFCount - SCSIobj.SOFCountSt));
     DEBUG_SCSI1PUTS("SCSI Read END\n");
 }
 

@@ -1,7 +1,7 @@
 /***************************************************************************//**
  * @file vUSBMSC_32.h
  * @brief	USB HOST MSC driver.
- *			It's a low level driver of USB module
+ *			It's a low level driver for USB module
  * @author hiroshi murakami
  * @date	20200123
  *
@@ -42,7 +42,13 @@ enum eUSB_STATE {
     eUSB_GET_ConfigDescriptor_dataGet,
     eUSB_GET_ConfigDescriptor_END,
     
+// Bulk-Only Mass Storage Reset,
+    eUSB_BulkOnly_MassStorageReset_start,
+    eUSB_BulkOnly_MassStorageReset_BusyCheck,
+    eUSB_BulkOnly_MassStorageReset_END,
+
     eUSB_SETUP_END,
+
     
 // CONTROL transfer 
     eUSB_CONTROL_OUT_start,
@@ -291,9 +297,6 @@ typedef struct __USB_OBJECT    // interface for vUSBMSC module
     UINT8     TransmissionBytes;      // DATA Send Bytes
     
     USB_DESCRIPTORS *pUSB_Descriptors;    
-#ifdef _V_DEBUG_SCSI2
-	UINT16	SOFCountSt;     // SOF freame counter save for SCSI DEBUG
-#endif
 } USB_OBJECT;
 
 

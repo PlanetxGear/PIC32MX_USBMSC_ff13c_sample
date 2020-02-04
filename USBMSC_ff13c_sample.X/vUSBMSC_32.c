@@ -1,13 +1,31 @@
 /***************************************************************************//**
  * @file vUSBMSC_32.c
  * @brief	USB HOST MSC driver.
- *			It's a low level driver of USB module
+ *			It's a low level driver for USB module
  * @author hiroshi murakami
  * @date	20200123
  *
  * This software is released under the MIT License, see LICENSE.md
  ******************************************************************************/
 #define _vUSBMSC_C
+
+#define _V_DEBUG_USB1		// when Lv1 debugging, define _V_DEBUG_USB1. 
+//#define _V_DEBUG_USB2		// when Lv2 debugging, define _V_DEBUG_USB1. 
+#ifdef _V_DEBUG_USB1
+	#define	DEBUG_USB1PUTS(str1)	xputs(str1)
+	#define	DEBUG_USB1PRINTF(fmt1, ...)	xprintf(fmt1, __VA_ARGS__)
+#else
+	#define	DEBUG_USB1PUTS(str1)
+	#define	DEBUG_USB1PRINTF(fmt1, ...)
+#endif
+#ifdef _V_DEBUG_USB2
+	#define	DEBUG_USB2PUTS(str1)	xputs(str1)
+	#define	DEBUG_USB2PRINTF(fmt1, ...)	xprintf(fmt1, __VA_ARGS__)
+#else
+	#define	DEBUG_USB2PUTS(str1)
+	#define	DEBUG_USB2PRINTF(fmt1, ...)
+#endif
+
 
 #include <string.h>		// for memset
 
@@ -57,6 +75,8 @@ const UINT8 USBMSC_GetConfigDescriptor[]  = {0x80, 0x06, 0x00, 0x02, 0x00, 0x00,
 //const UINT8 USBMSC_GetReportDescriptor[]  = {0x81, 0x06, 0x00, 0x22, 0x00, 0x00, 0xff, 0x00}; // Get report descriptor (interface 0)
 //const UINT8 USBMSC_GetReportDesc2riptor[] = {0x81, 0x06, 0x00, 0x22, 0x01, 0x00, 0xff, 0x00}; // Get report descriptor (interface 1)
 
+const UINT8 USBMSC_BulkOnly_MassStorageReset[] = {0x21, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};	// SET_ADDRESS contents / address = 1
+
 //******************************************************************************
 /**	
  * @brief	USB speed check & setup relative register.
@@ -70,7 +90,7 @@ void USBMSC_checkSpeedAndSetup(void)
             }
             else 
             {
-                DEBUG_PUTS("LowSpeed!\n");
+                DEBUG_USB1PUTS("LowSpeed!\n");
                 USBobj.IsLowSpeed = 1;	// Set low speed flag
             }
             U1ADDR = USBobj.IsLowSpeed? 0x80: 0x00;	// Reset USB address (Set MSB if low speed device)
@@ -86,9 +106,9 @@ void USBMSC_checkSpeedAndSetup(void)
  * @param[out]	USBobj.SOFCount
  * @param[out]	USBobj.IsAttach
  * @param[out]	USBobj.IsLowSpeed
+ * @param[out]	USBobj.Status = eUSB_AttachWait/eUSB_initRegister
  *   	
  */
-//void __attribute__((__interrupt__,no_auto_psv)) _USB1Interrupt(void)            //pic24f
 //void __attribute__ ((vector(_USB_VECTOR), interrupt(IPL1SOFT))) _USB1_ISR (  )  //pic32mm
 void __ISR(_USB_1_VECTOR, IPL1AUTO) _USB1Interrupt (  )                         //pic32mx
 {
@@ -103,7 +123,7 @@ void __ISR(_USB_1_VECTOR, IPL1AUTO) _USB1Interrupt (  )                         
         USBobj.IsAttach = 1;    // Set attache flag
         USBobj.Status = eUSB_AttachWait;
         USBMSC_checkSpeedAndSetup();
-        DEBUG_PUTS("Attached1\n");    // Show attached message
+        DEBUG_USB1PUTS("Attached1\n");    // Show attached message
     } 
     else if(U1IRbits.DETACHIF && U1IEbits.DETACHIE)    // Detach interrupt? 
     {
@@ -111,7 +131,7 @@ void __ISR(_USB_1_VECTOR, IPL1AUTO) _USB1Interrupt (  )                         
         U1IEbits.DETACHIE = 0;        // Enable DETACH interrupts
         USBobj.IsAttach = 0;    // Set attache flag
         USBobj.Status = eUSB_initRegister;
-        DEBUG_PUTS("Detached1\n");    // Show detached message
+        DEBUG_USB1PUTS("Detached1\n");    // Show detached message
     } 
     
     // when you clearing interrupt flags, you should do it following order. 
@@ -149,8 +169,8 @@ void USBMSC_clearPinPonBufferPointer(void)
 void USBMSC_clearEPNumber(void)
 {
     SIEobj.EPset.EP_No = 0;
-    SIEobj.EPin.EP_No = 0;
-    SIEobj.EPout.EP_No = 0;
+    SIEobj.EPin.EP_No = 1;  // the Number s differece about the USB memory.
+    SIEobj.EPout.EP_No = 2; // the Number s differece about the USB memory.
 }
     
 //******************************************************************************
@@ -160,7 +180,7 @@ void USBMSC_clearEPNumber(void)
  */
 void USBMSC_initRegisters(void)
 {
-    DEBUG_USB1PUTS("USBMSC_initRegisters\n");
+    DEBUG_USB2PUTS("USBMSC_initRegisters\n");
     USBobj.IsAttach = 0;      // Clear attach flag
     USBobj.IsLowSpeed = 0;    // Reset USB bus speed
     USBobj.pUSB_Descriptors = (USB_DESCRIPTORS*)&USB_Descriptors;
@@ -203,7 +223,6 @@ void USBMSC_initRegisters(void)
     U1IEbits.ATTACHIE = 1;  // Enable ATTACH interrupt
     U1IEbits.SOFIE = 1;     // Enable SOFIE interrupt
     U1EIE = 0xbf;           // Enable all error interrupts but U1IEbits.UERRIE is off.
-//    U1EIE = 0xaf;         // Enable all error interrupts but BMXEE & BTOEE & U1IEbits.UERRIE  are off.
 
     // USB interrupt priority
     // Priority: 1
@@ -254,14 +273,14 @@ BDT_ENTRY *pBDT
     {
         U1IRbits.STALLIF = 1;	// Clear STALL bit 
 		USBobj.Status = eUSB_ERR_STALL;
-        DEBUG_PUTS( "USB_STALL\n");
+        DEBUG_USB1PUTS( "USB_STALL\n");
         return USBobj.Status;	// STALL return
     }
 // Handle Errors
     if(U1IRbits.UERRIF)	// Check error bit 
     {
 		USBobj.Status = eUSB_ERR_ANY;	// ERROR Return
-        DEBUG_PRINTF( "USB_ERR_ANY. U1EIR:0x%02x\n", U1EIR);
+        DEBUG_USB1PRINTF( "USB_ERR_ANY. U1EIR:0x%02x\n", U1EIR);
         return USBobj.Status;
     }
 // Handle data
@@ -270,7 +289,7 @@ BDT_ENTRY *pBDT
         U1IRbits.TRNIF = 1;	// Clear data transfer bit 
         SIEobj.BDpid = pBDT->STAT.PID;	// Get PID
         SIEobj.BDbyteCount = pBDT->count;	// Get data count
-		DEBUG_USB1PRINTF( "PID:0x%02x\n", SIEobj.BDpid);
+		DEBUG_USB2PRINTF( "PID:0x%02x\n", SIEobj.BDpid);
         if(SIEobj.BDpid == 0x02 || SIEobj.BDpid == 0x03 || SIEobj.BDpid == 0x0b)	// ACK/DATA0/DATA1 PID means success of transaction
 		{
            
@@ -285,19 +304,19 @@ BDT_ENTRY *pBDT
         else if(SIEobj.BDpid == 0x0e)	// STALL PID?
         {
 			USBobj.Status = eUSB_ERR_STALL;	// Return as STALL result
-            DEBUG_PUTS( "USB_STALL_PID\n");
+            DEBUG_USB1PUTS( "USB_STALL_PID\n");
 			return USBobj.Status;
         }
         else	// Unknown pid has come
 			USBobj.Status = eUSB_ERR_UnknownPID;	// Return as ERROR result
-			DEBUG_PRINTF( "USB_PID_ERROR. Unknow PID:0x%02x\n", SIEobj.BDpid);
+			DEBUG_USB1PRINTF( "USB_PID_ERROR. Unknow PID:0x%02x\n", SIEobj.BDpid);
 			return USBobj.Status;
     }
     
     if(IS_uiTMR001_FINISH)  //time out trap
     {
         USBobj.Status = eUSB_ERR_TIMEOUT;
-        DEBUG_PUTS( "USB_TIMEOUT_ERROR\n");
+        DEBUG_USB1PUTS( "USB_TIMEOUT_ERROR\n");
         return USBobj.Status;	// Time Out Error return
     }
 	
@@ -339,7 +358,7 @@ void USBMSC_statusControl(void)
         {
             USBMSC_checkSpeedAndSetup();
             
-            DEBUG_USB1PUTS("Attached Stable\n");
+            DEBUG_USB2PUTS("Attached Stable\n");
             USBobj.Status++;        //next step
         }
          break;
@@ -354,7 +373,7 @@ void USBMSC_statusControl(void)
         {
             U1CONbits.USBRST = 0;    // Release reset
             U1CONbits.SOFEN = 1;    // Turn on SOF's, SOF packet start
-            DEBUG_USB1PUTS("Reset USB Bus\n");
+            DEBUG_USB2PUTS("Reset USB Bus\n");
             uiTMR001 = 10;          // wait timer set for 10ms
             USBobj.Status++;          //next step
         }
@@ -368,7 +387,7 @@ void USBMSC_statusControl(void)
 
 
     case      eUSB_SETUP_setAddress_start:
-        DEBUG_USB1PUTS("Set USB Address start\n");
+        DEBUG_USB2PUTS("Set USB Address start\n");
         USBMSC_clearEPNumber();
         USBMSC_clearPinPonBufferPointer();
         USBobj.RetrayCount_aroundAddressSet = 0;
@@ -379,6 +398,9 @@ void USBMSC_statusControl(void)
 
         USBobj.Command = eUSB_SETUP_setAddress_start;
         USBobj.Status = eUSB_CONTROL_OUT_start;          //SETUP!
+        
+        USBobj.RetrayCount_aroundAddressSet = USBobj.SOFCount;
+        
         break;
     case      eUSB_SETUP_setAddress_BusyCheck:
         USBobj.TransmissionBytes = 0;
@@ -387,13 +409,14 @@ void USBMSC_statusControl(void)
         break;
     case      eUSB_SETUP_setAddress_END:
         U1ADDR = (USBobj.IsLowSpeed? 0x80: 0x00) + USB_ADDRESS_1;    // Set new address
-        xprintf( "Set USB Address. U1ADDR:0x%02x\n", U1ADDR);
-        DEBUG_PRINTF("retray_counter:%d\n", USBobj.RetrayCount_aroundAddressSet);
+        USBobj.RetrayCount_aroundAddressSet = USBobj.SOFCount - USBobj.RetrayCount_aroundAddressSet;
+        DEBUG_USB1PRINTF("Set USB Address. U1ADDR:0x%02x\n", U1ADDR);
+        DEBUG_USB1PRINTF("Retry_counter:%d\n", USBobj.RetrayCount_aroundAddressSet);
         USBobj.Status++;          //next step
         break;
 
     case      eUSB_SETUP_setConfig_start:
-        DEBUG_USB1PUTS("Set USB Config start\n");
+        DEBUG_USB2PUTS("Set USB Config start\n");
         USBMSC_clearEPNumber();
         USBMSC_clearPinPonBufferPointer();
 
@@ -410,13 +433,13 @@ void USBMSC_statusControl(void)
         USBobj.Status = eUSB_CONTROL_IN_start;          //SETUP!
         break;
     case      eUSB_SETUP_setConfig_END:
-        xputs("Set USB Config END\n");
+        DEBUG_USB1PUTS("Set USB Config END\n");
         USBobj.Status++;          //next step
         break;
 
         
     case      eUSB_GET_DeviceDescriptor_start:
-        DEBUG_USB1PUTS("eUSB_GET_DeviceDescriptor_start\n");
+        DEBUG_USB2PUTS("eUSB_GET_DeviceDescriptor_start\n");
         USBMSC_clearEPNumber();
         USBMSC_clearPinPonBufferPointer();
 
@@ -434,13 +457,13 @@ void USBMSC_statusControl(void)
         USBobj.Status = eUSB_CONTROL_IN_start;  
         break;
     case      eUSB_GET_DeviceDescriptor_END:
-        xputs("eUSB_GET_DeviceDescriptor_END\n");
+        DEBUG_USB1PUTS("eUSB_GET_DeviceDescriptor_END\n");
         USBobj.Status++;          //next step
         break;
 
         
     case      eUSB_GET_ConfigDescriptor_start:
-        DEBUG_USB1PUTS("eUSB_GET_ConfigDescriptor_start\n");
+        DEBUG_USB2PUTS("eUSB_GET_ConfigDescriptor_start\n");
         USBMSC_clearEPNumber();
         USBMSC_clearPinPonBufferPointer();
 
@@ -458,7 +481,7 @@ void USBMSC_statusControl(void)
         USBobj.Status = eUSB_CONTROL_IN_start;  
         break;
     case      eUSB_GET_ConfigDescriptor_END:
-        xputs("eUSB_GET_ConfigDescriptor_END\n");
+        DEBUG_USB1PUTS("eUSB_GET_ConfigDescriptor_END\n");
 
         if(USBobj.pUSB_Descriptors->EPa.EP_Nos.direction == 1)
         {
@@ -478,8 +501,34 @@ void USBMSC_statusControl(void)
 
         
     ////////////////////////////////////////////////////////////////////////////
+    case      eUSB_BulkOnly_MassStorageReset_start:
+        DEBUG_USB2PUTS(" eUSB_BulkOnly_MassStorageReset_start\n");
+        USBMSC_clearPinPonBufferPointer();
+
+        memcpy(UsbBufCMD64, USBMSC_BulkOnly_MassStorageReset, 8);    // Copy SET_CONFIG request packet to send buffer.
+        USBobj.BufferAddress = (UINT32)&UsbBufCMD64;
+        USBobj.TransmissionBytes = 8;
+
+        USBobj.Command = eUSB_BulkOnly_MassStorageReset_start;
+        USBobj.Status = eUSB_CONTROL_OUT_start;          //SETUP!
+        break;
+    case      eUSB_BulkOnly_MassStorageReset_BusyCheck:
+        USBobj.TransmissionBytes = 0;
+        USBobj.Command = eUSB_BulkOnly_MassStorageReset_BusyCheck;
+        USBobj.Status = eUSB_CONTROL_IN_start;          //SETUP!
+        break;
+    case      eUSB_BulkOnly_MassStorageReset_END:
+        DEBUG_USB1PUTS(" eUSB_BulkOnly_MassStorageReset_start END\n");
+        USBobj.Command = eUSB_IDLE;
+        USBobj.Status = eUSB_IDLE;          //Read & Write command waiting
+        USBMSC_clearPinPonBufferPointer();
+        break;
+
+
+        
+    ////////////////////////////////////////////////////////////////////////////
     case      eUSB_CONTROL_OUT_start:
-        DEBUG_USB1PRINTF("eUSB_CONTROL_OUT_start,SOF:%d\n",USBobj.SOFCount);
+        DEBUG_USB2PRINTF("eUSB_CONTROL_OUT_start,SOF:%d\n",USBobj.SOFCount);
 
         pEPreserve = &SIEobj.EPset;
         SIEobj.inOut = DIR_OUT;
@@ -488,7 +537,7 @@ void USBMSC_statusControl(void)
         break;
         
     case      eUSB_CONTROL_IN_start:
-        DEBUG_USB1PRINTF("eUSB_CONTROL_IN_start,SOF:%d\n",USBobj.SOFCount);
+        DEBUG_USB2PRINTF("eUSB_CONTROL_IN_start,SOF:%d\n",USBobj.SOFCount);
 
         pEPreserve = &SIEobj.EPset;
         SIEobj.inOut = DIR_IN;
@@ -498,7 +547,7 @@ void USBMSC_statusControl(void)
 
       
     case      eUSB_EPout:
-        DEBUG_USB1PRINTF("eUSB_EPout,SOF:%u\n",USBobj.SOFCount);
+        DEBUG_USB2PRINTF("eUSB_EPout,SOF:%u\n",USBobj.SOFCount);
         
         USBobj.Command = eUSB_Busy;
 
@@ -509,7 +558,7 @@ void USBMSC_statusControl(void)
         break;
 
     case      eUSB_EPin:
-        DEBUG_USB1PRINTF("eUSB_EPin,SOF:%d\n",USBobj.SOFCount);
+        DEBUG_USB2PRINTF("eUSB_EPin,SOF:%d\n",USBobj.SOFCount);
         
         USBobj.Command = eUSB_Busy;
         
@@ -525,7 +574,7 @@ void USBMSC_statusControl(void)
         USBMSC_wait1msForNAK();
         break;
     case      eUSB_DataRW_start:
-        DEBUG_USB1PRINTF("eUSB_DataRW_start,SOF:%d\n",USBobj.SOFCount);
+        DEBUG_USB2PRINTF("eUSB_DataRW_start,SOF:%d\n",USBobj.SOFCount);
 
         pEvenOddreserve = &SIEobj.EvenOdd[SIEobj.inOut];
         pBDTreserve = &BDTs.BDT_IO[SIEobj.inOut][*pEvenOddreserve];
@@ -535,7 +584,7 @@ void USBMSC_statusControl(void)
         
         *pEvenOddreserve ^= 1;    // Flip PinPon pointer for next
         USBobj.Status++;        //next step
-        uiTMR001 = 10;        //time out trap
+        uiTMR001 = 30;        //time out trap
 
         if(SIEobj.inOut == DIR_IN)
         {
@@ -555,7 +604,7 @@ void USBMSC_statusControl(void)
         eUSBMSC_checkTransactionReturn(pBDTreserve);   //when it gets NACK, then retry.
         break;
     case      eUSB_DataRW_END:
-        DEBUG_USB1PUTS("eUSB_DataRW_END\n");
+        DEBUG_USB2PUTS("eUSB_DataRW_END\n");
         pEPreserve->Data01 ^= 1;         // Flip DATA0/1 bit for next
         USBobj.Status = ++USBobj.Command;   //return to command
         break;
@@ -579,16 +628,16 @@ void USBMSC_statusControl(void)
     case    eUSB_ERR_ANY:    
         IEC1bits.USBIE = 0;    // stop USB interrupt
         USBobj.Status = eUSB_ERR_END;
-        xputs("USB_ERR_ANY\n");    // Show Error message
-        xprintf( "U1OTGIR:0x%x\n", U1OTGIR);
-        xprintf( "U1IR:0x%x\n", U1IR);
-        xprintf( "U1EIR:0x%x\n", U1EIR);
+        DEBUG_USB1PUTS("USB_ERR_ANY\n");    // Show Error message
+        DEBUG_USB1PRINTF( "U1OTGIR:0x%x\n", U1OTGIR);
+        DEBUG_USB1PRINTF( "U1IR:0x%x\n", U1IR);
+        DEBUG_USB1PRINTF( "U1EIR:0x%x\n", U1EIR);
         break;
     case    eUSB_ERR_END:    
         break;
 
     default:
-        DEBUG_PRINTF( "USB_DEFAULT!! status:%d\n", USBobj.Status);
+        DEBUG_USB1PRINTF( "USB_DEFAULT!! status:%d\n", USBobj.Status);
     }
 
 }
